@@ -3,98 +3,112 @@
 use common::sense;
 use Game::Life;
 use Getopt::Long;
+use Convert::Color;
+# use Data::Printer { escape_chars => 'all' };
 
 my $size        = [ 25, 32 ];
 my $keeplife    = [3];
 my $breedlife   = [ 2, 3, 7 ];
-my $life_chance = 0.252;
+my $life_chance = .252;
+
 my $brightness  = 100;
-my $no_serial   = 0;
-my $port        = '/dev/tty.usbmodem2033001';
-# my $colour      = 'ffffff';
-my ($red, $green, $blue) = (255,255,255);
-my ($ored, $ogreen, $oblue);
-my $sleep       = .05;
+my $saturation  = 1;
+my $hue         = 0;
+my $hue_change  = .5;
+my $trail_speed = .008;
+
+my $sleep     = .05;
+my $no_print  = 0;
+my $no_serial = 0;
+my $port      = '/dev/tty.usbmodem2033001';
+
+my @map;
 my $wall;
+my ($r, $g, $b, $colour);
 
 GetOptions(
-    "noserial|n"     => \$no_serial,
-    "chance|l=f"     => \$life_chance,
-    "device|d=s"     => \$port,
-    "red|r=i"        => \$red,
-    "green|g=i"      => \$green,
-    "blue|b=i"       => \$blue,
-    "brightness|v=i" => \$brightness,
-    "speed|s=f"      => \$sleep,
+    "noserial|n"      => \$no_serial,
+    "no_print|p"      => \$no_print,
+    "chance|l=f"      => \$life_chance,
+    "device|d=s"      => \$port,
+    "colour|c=s"      => \$colour,
+    "brightness|v=i"  => \$brightness,
+    "speed|s=f"       => \$sleep,
+    "hue-change|h=f"  => \$hue_change,
+    "trail-speed|t=f" => \$trail_speed,
 );
+
+my $starting = [
+    map {
+        [ map { int($life_chance + rand) } 1 .. 25 ]
+    } 1 .. 32
+];
 
 unless ($no_serial) {
     require Device::SerialPort;
-    $wall = Device::SerialPort->new($port) || die "Can't open $port: $!";;
+    $wall = Device::SerialPort->new($port) || die "Can't open $port: $!";
     $wall->baudrate(230400);
+
+    $colour = Convert::Color->new($colour
+            // ('hsv:' . join(',', $hue, $saturation, $brightness)));
+    ($hue, $saturation) = $colour->hsv;
+
+    @map = init_map($starting);
 }
 
 my $game = Game::Life->new($size, $keeplife, $breedlife);
-my $starting = [
-    map {
-        [ map { int($life_chance + rand) } 1 .. 32 ]
-    } 1 .. 25
-];
 
 $game->place_points(0, 0, $starting);
+undef $starting;
 while (1) {
-    my $grid = $game->get_grid();
+    my @grid = @{ $game->get_grid() };
 
     # send new frame header
     $wall->write(chr(1)) unless $no_serial;
 
     # clear terminal screen
-    print "\033[2J\033[0;0H";
+    print "\033[2J\033[0;0H" unless $no_print;
 
-    my $r = int($red * ($brightness / 100));
-    my $g = int($green * ($brightness / 100));
-    my $b = int($blue * ($brightness / 100));
-    $ored   = $r - 10;
-    $ogreen = $g - 0;
-    $oblue  = $b - 10;
+    for (my $x = 0; $x <= $#grid; $x++) {
+        my @line = @{ $grid[$x] };
 
-    my $line_count = 0;
-    foreach my $line (@$grid) {
         unless ($no_serial) {
-            $line_count++;
+            for (my $y = 0; $y <= $#line; $y++) {
+                if ($grid[$x][$y]) {
+                    $map[$x][$y] = [ $hue, $saturation, $brightness / 100 ];
+                }
+                else {
+                    $map[$x][$y][2] -= $trail_speed;
+                    $map[$x][$y][2] = 0 if ($map[$x][$y][2] <= 0);
+                }
+            }
 
-            my $row = join(
-                '',
-                map {
-                    $_
-                        # cell is alive
-                        ? $line_count % 2
-                            # invert colour order every second line because of
-                            # snake style LED strip wrapping
-                            ? chr($g) . chr($r) . chr($b)
-                            : chr($b) . chr($r) . chr($g)
-
-                        # cell is dead (use previous iteration colours)
-                        # : $line_count % 2
-                        #     # invert colour order every second line because of
-                        #     # snake style LED strip wrapping
-                        #     ? chr($ogreen) . chr($ored) . chr($oblue)
-                        #     : chr($oblue) . chr($ored) . chr($ogreen)
-                        : chr(0) . chr(0) . chr(0)
-                } @$line
-            );
-            $row = scalar reverse $row unless ($line_count % 2);
-            $wall->write($row);
+            my @row = map {
+                my $c = Convert::Color::HSV->new(@$_)->as_rgb8;
+                join('',
+                    map { chr($_) }
+                        $c->green, $c->red, $c->blue)
+            } @{ $map[$x] };
+            $wall->write(join('', $x % 2 ? @row : reverse @row));
         }
-        print map { $_ ? 'O  ' : '   ' } @$line;
-        print "\n";
-    }
+        unless ($no_print) {
+            print map { $_ ? 'O  ' : '   ' } @line;
+            print "|\n";
+        }
 
-    # store new colours as old colours
-    # ($ored, $ogreen, $oblue) = ($red, $green, $blue);
+        $hue += $hue_change;
+    }
+    print "---" x $size->[0] . $/ unless $no_print;
 
     # slow down processing
     select(undef, undef, undef, $sleep);
 
     $game->process();
+}
+
+sub init_map {
+    my $starting = shift;
+    return map {
+        [ map { $_ ? [ $hue, $saturation, $brightness ] : [ 0, 0, 0 ] } @$_ ]
+    } @$starting;
 }
