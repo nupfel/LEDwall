@@ -43,9 +43,9 @@ GetOptions(
 if ($help) {
     print "Usage: $0 <options>\n";
     print "\n";
-    print "  --no-serial, -n         disable serial port output, just print pattern\n";
+    print "  --no-serial, -n         disable serial port output\n";
     print "                          Default: enabled\n";
-    print "  --no-print, -p          disable terminal print output, just run serial\n";
+    print "  --no-print, -p          disable terminal print output\n";
     print "                          this is required for faster processing\n";
     print "                          Default: enabled\n";
     print "  --help, -?              print this usage help\n";
