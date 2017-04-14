@@ -11,13 +11,13 @@ my $keeplife    = [3];
 my $breedlife   = [ 2, 3, 7 ];
 my $life_chance = .252;
 
-my $brightness  = 100;
-my $saturation  = 1;
+my $brightness  = 0.1;
+my $saturation  = 0;
 my $hue         = 0;
 my $hue_change  = .5;
 my $trail_speed = .008;
 
-my $sleep     = .05;
+my $delay     = .05;
 my $no_print  = 0;
 my $no_serial = 0;
 my $port      = '/dev/tty.usbmodem2033001';
@@ -25,18 +25,51 @@ my $port      = '/dev/tty.usbmodem2033001';
 my @map;
 my $wall;
 my ($r, $g, $b, $colour);
+my $help;
 
 GetOptions(
-    "noserial|n"      => \$no_serial,
-    "no_print|p"      => \$no_print,
-    "chance|l=f"      => \$life_chance,
+    "help|?"          => \$help,
+    "no-serial|n"     => \$no_serial,
+    "no-print|p"      => \$no_print,
+    "life-chance|l=f" => \$life_chance,
     "device|d=s"      => \$port,
     "colour|c=s"      => \$colour,
-    "brightness|v=i"  => \$brightness,
-    "speed|s=f"       => \$sleep,
+    "brightness|v=f"  => \$brightness,
+    "delay|s=f"       => \$delay,
     "hue-change|h=f"  => \$hue_change,
     "trail-speed|t=f" => \$trail_speed,
 );
+
+if ($help) {
+    print "Usage: $0 <options>\n";
+    print "\n";
+    print "  --no-serial, -n         disable serial port output, just print pattern\n";
+    print "                          Default: enabled\n";
+    print "  --no-print, -p          disable terminal print output, just run serial\n";
+    print "                          this is required for faster processing\n";
+    print "                          Default: enabled\n";
+    print "  --help, -?              print this usage help\n";
+    print "  --life-chance, -l       float value between 0-1 used as chance for life\n";
+    print "                          for each cell in the initial setup\n";
+    print "                          Default: $life_chance\n";
+    print "  --device, -d            serial port to use\n";
+    print "                          Default: $port\n";
+    print "  --colour, -c            string used by Convert::Colour constructor\n";
+    print "                          to set the inital colour.\n";
+    print "                          Default: hsv:$hue,$saturation,$brightness\n";
+    print "  --brightness, -v        float value between 0-1 to set the overall\n";
+    print "                          brightness or all pixels\n";
+    print "                          Default: $brightness\n";
+    print "  --hue-change, -h        float value between 0-1 used to change the\n";
+    print "                          hue value on each line of iteration\n";
+    print "                          Default: $hue_change\n";
+    print "  --trail-speed, -t       float value between 0-1 used to decrease brightness\n";
+    print "                          of dead cells after each iteration\n";
+    print "                          Default: $trail_speed\n";
+    print "  --delay, -s             float value in seconds to delay processing after each iteration\n";
+    print "                          Default: $delay\n";
+    exit;
+}
 
 my $starting = [
     map {
@@ -75,7 +108,7 @@ while (1) {
         unless ($no_serial) {
             for (my $y = 0; $y <= $#line; $y++) {
                 if ($grid[$x][$y]) {
-                    $map[$x][$y] = [ $hue, $saturation, $brightness / 100 ];
+                    $map[$x][$y] = [ $hue, $saturation, $brightness ];
                 }
                 else {
                     $map[$x][$y][2] -= $trail_speed;
@@ -101,7 +134,7 @@ while (1) {
     print "---" x $size->[0] . $/ unless $no_print;
 
     # slow down processing
-    select(undef, undef, undef, $sleep);
+    select(undef, undef, undef, $delay);
 
     $game->process();
 }
