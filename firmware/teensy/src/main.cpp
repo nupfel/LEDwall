@@ -32,13 +32,13 @@ void displayWorld();
 void updateWorld();
 
 byte r = 50, g = 100, b = 200;
-uint8_t brightness = 127;
+uint8_t brightness = 100;
 uint8_t saturation = 255;
-uint8_t speed = 220;
+uint8_t speed = 230;
 uint8_t trail_length = 250;
 uint8_t hue_speed = 1;
 uint8_t hue = 0;
-uint8_t density = 25;
+uint8_t density = 5;
 unsigned long pixel = 0;
 bool starting = 1;
 int command;
@@ -121,18 +121,22 @@ void handleCommand() {
             Serial.printf("trail_length: %d\n", trail_length);
             break;
         case 6:
+            hue = serialData();
+            Serial.printf("hue: %d\n", hue);
+            break;
+        case 7:
             hue_speed = serialData();
             Serial.printf("hue_speed: %d\n", hue_speed);
             break;
-        case 7:
+        case 8:
             density = serialData();
             Serial.printf("density: %d\n", density);
             break;
-        case 8:
+        case 9:
             starting = 1;
             Serial.println("restarting pattern");
             break;
-        case 9:
+        case 10:
             printSettings();
             break;
     }
@@ -142,6 +146,7 @@ void printSettings() {
     Serial.printf("brightness: %d\n", brightness);
     Serial.printf("speed: %d\n", speed);
     Serial.printf("trail_length: %d\n", trail_length);
+    Serial.printf("hue: %d\n", hue);
     Serial.printf("hue_speed: %d\n", hue_speed);
     Serial.printf("density: %d\n", density);
     Serial.println("-------------------");
