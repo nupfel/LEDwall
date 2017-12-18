@@ -37,7 +37,7 @@ get '/set/:setting' => sub {
 
     say "$setting: $value";
 
-    if ($value) {
+    if (defined $value) {
         $wall->write(chr($settings{$setting}) . chr($value));
     }
     else {
