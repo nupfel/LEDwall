@@ -100,7 +100,7 @@
             document.getElementById("up").style.fill = "#d5f6ff";
             document.getElementById("dn").style.fill = "#d5f6ff";
             var req = new XMLHttpRequest();
-            req.open("GET", "/setting/density?value=" + pos, true);
+            req.open("GET", "/set/density?value=" + pos, true);
             req.send();
         });
         document.getElementById("ring").onmousedown = dragStart;
