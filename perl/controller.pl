@@ -43,6 +43,7 @@ get '/set/:setting' => sub {
     else {
         $wall->write(chr($settings{$setting}));
     }
+    select(undef,undef,undef,0.3);
     my ($count, $raw) = $wall->read(10000);
     $c->render(text => $raw);
 };
